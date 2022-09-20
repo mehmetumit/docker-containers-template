@@ -1,0 +1,69 @@
+services:
+  nginx:
+    # Image is defined in Dockerfile
+    hostname: nginx
+    container_name: nginx
+    restart: always
+    # Dockerfile folder path
+    build:
+      context: ./nginx
+    ports:
+      - ${NGINX_PORT_OUT_HTTP}:${NGINX_PORT_IN_HTTP}
+      - ${NGINX_PORT_OUT_S}:${NGINX_PORT_OUT_S}
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:z
+      - ./nginx/dhparam:/etc/nginx/dhparam:z
+      - ./nginx/log:/var/log/nginx:z
+  db:
+    # Image is defined here
+    # We can create container without dockerfile too
+    image: postgres:14.4
+    hostname: db
+    container_name: db
+    ports:
+      - ${PG_PORT_OUT}:${PG_PORT_IN}
+    # We can use only 'env_file: .env' too
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: ${PGDATA}
+    volumes:
+      - ./data/db_data:${PGDATA}:rw
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    # Fix volume permissions
+    user: root
+    hostname: pgadmin
+    container_name: pgadmin
+    restart: always
+    ports:
+      - ${PGADMIN_PORT_OUT}:${PGADMIN_PORT_IN}
+    # We can use 'env_file: .env' too
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_LISTEN_PORT: ${PGADMIN_PORT_IN}
+    volumes:
+      # ./data/pgadmin_data directory's user and group id's has to be 5050
+      # Also we can fix this issue by setting user as root
+      # ls -l ./data/pgadmin_data output will be like
+      # drwxrwxr-x 1 5050 5050 12693 Sep 12 14:56 pgadmin
+      # sudo chown -R 5050:5050 ./data/pgadmin_data
+      # You can check out the details in documentation website -> https://www.pgadmin.org/docs/pgadmin4/development/container_deployment.html
+      - ./data/pgadmin_data:/var/lib/pgadmin:z
+  nodejs:
+    # Dockerfile folder path
+    # Image is defined in Dockerfile
+    build:
+      context: ./nodejs
+    hostname: nodejs
+    container_name: nodejs
+    # Don't open port to outside
+    # Expose ports to internal container network
+    expose:
+      - 80
+      - 443
+    volumes:
+      # We can add html content to public folder while container is running with this way
+      - ./nodejs/public:/usr/src/public:z
